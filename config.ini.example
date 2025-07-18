@@ -1,0 +1,19 @@
+# Email Automation Configuration
+# Copy this file to config.ini and fill in your actual credentials
+
+[EMAIL]
+smtp_server = smtp.gmail.com
+smtp_port = 587
+sender_email = your_email@gmail.com
+sender_password = your_16_char_app_password
+recipient_email = recipient1@email.com, recipient2@email.com
+
+[PATHS]
+data_folder = data
+reports_folder = reports
+logs_folder = logs
+
+[SETTINGS]
+report_frequency = daily
+chart_style = seaborn
+log_level = INFO 
