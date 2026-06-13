@@ -4,18 +4,16 @@ Automatically generates and emails daily/weekly sales reports
 """
 
 import smtplib
-import configparser
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-from email.mime.base import MIMEBase
-from email import encoders
 from datetime import datetime
-import logging
 from pathlib import Path
 import schedule
 import time
 
+from config_loader import load_settings
+from utils import setup_logging
 from report_generator import SalesReportGenerator
 
 class EmailAutomator:
@@ -23,36 +21,12 @@ class EmailAutomator:
     
     def __init__(self, config_file='config.ini'):
         self.config_file = config_file
-        self.config = self.load_config()
-        self.setup_logging()
-        
-    def load_config(self):
-        """Load configuration from INI file"""
-        config = configparser.ConfigParser()
-        
-        if not Path(self.config_file).exists():
-            raise FileNotFoundError(f"Configuration file {self.config_file} not found!")
-        
-        config.read(self.config_file)
-        return config
-    
-    def setup_logging(self):
-        """Set up logging for the automation system"""
-        log_level = self.config.get('SETTINGS', 'log_level', fallback='INFO')
-        log_folder = Path(self.config.get('PATHS', 'logs_folder', fallback='logs'))
-        log_folder.mkdir(exist_ok=True)
-        
-        # Configure logging
-        logging.basicConfig(
-            level=getattr(logging, log_level),
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_folder / 'email_automation.log'),
-                logging.StreamHandler()  # Also print to console
-            ]
+        self.settings = load_settings(config_file)
+        self.logger = setup_logging(
+            self.settings.logs_folder,
+            self.settings.log_level,
+            log_file='email_automation.log',
         )
-        
-        self.logger = logging.getLogger(__name__)
         self.logger.info("Email automation system initialized")
     
     def create_html_email_body(self, report_data):
@@ -169,16 +143,20 @@ class EmailAutomator:
         """
         try:
             self.logger.info("Starting email sending process...")
-            
-            # Get email configuration
-            smtp_server = self.config.get('EMAIL', 'smtp_server')
-            smtp_port = self.config.getint('EMAIL', 'smtp_port')
-            sender_email = self.config.get('EMAIL', 'sender_email')
-            sender_password = self.config.get('EMAIL', 'sender_password')
-            recipient_emails_raw = self.config.get('EMAIL', 'recipient_email')
-            
-            # Handle multiple recipients (comma-separated)
-            recipient_emails = [email.strip() for email in recipient_emails_raw.split(',')]
+
+            email_cfg = self.settings.email
+
+            if not email_cfg.is_configured:
+                raise ValueError(
+                    "Email is not configured. Set SENDER_EMAIL, SENDER_PASSWORD and "
+                    "RECIPIENT_EMAIL via a .env file or config.ini before sending."
+                )
+
+            smtp_server = email_cfg.smtp_server
+            smtp_port = email_cfg.smtp_port
+            sender_email = email_cfg.sender_email
+            sender_password = email_cfg.sender_password
+            recipient_emails = email_cfg.recipients
             
             # Create message container
             msg = MIMEMultipart('alternative')
