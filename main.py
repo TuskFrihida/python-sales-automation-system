@@ -90,6 +90,14 @@ def cmd_pdf(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    """Launch the Flask web dashboard."""
+    from dashboard import run
+
+    run(host=args.host, port=args.port, debug=args.debug)
+    return 0
+
+
 def cmd_schedule(args: argparse.Namespace) -> int:
     """Run the email report automatically every day at a given time."""
     import time
@@ -151,6 +159,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_pdf.add_argument("--reports-folder", default="reports", help="Folder for the PDF.")
     p_pdf.add_argument("--output", default=None, help="Output filename (default: dated name).")
     p_pdf.set_defaults(func=cmd_pdf)
+
+    # dashboard
+    p_dash = sub.add_parser("dashboard", help="Launch the web dashboard in the browser.")
+    p_dash.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
+    p_dash.add_argument("--port", type=int, default=5000, help="Port to bind (default: 5000).")
+    p_dash.add_argument("--debug", action="store_true", help="Enable Flask debug mode.")
+    p_dash.set_defaults(func=cmd_dashboard)
 
     # schedule
     p_sched = sub.add_parser("schedule", help="Send the email report daily on a schedule.")
