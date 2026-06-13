@@ -4,3 +4,4 @@ matplotlib>=3.8.2
 seaborn>=0.13.0
 schedule>=1.2.0
 python-dotenv>=1.0.0
+fpdf2>=2.7.6
