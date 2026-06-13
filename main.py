@@ -1,0 +1,143 @@
+"""
+Sales Automation System - Unified Command Line Interface
+========================================================
+
+A single entry point that exposes every part of the pipeline as a subcommand,
+so the whole tool behaves like a real CLI application instead of a set of
+loose scripts.
+
+Examples
+--------
+    python main.py generate-data --days 7
+    python main.py report
+    python main.py email
+    python main.py schedule --time 09:00
+
+Run ``python main.py --help`` or ``python main.py <command> --help`` for
+details on any command.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import datetime, timedelta
+
+from config_loader import load_settings
+from utils import setup_logging
+
+
+def cmd_generate_data(args: argparse.Namespace) -> int:
+    """Create sample sales CSV files for the last N days."""
+    import random
+    from data_generator import SalesDataGenerator
+
+    generator = SalesDataGenerator()
+    for i in range(args.days):
+        date = datetime.now().date() - timedelta(days=i)
+        records = random.randint(args.min_records, args.max_records)
+        df = generator.generate_daily_data(date, records)
+        generator.save_data(df, folder=args.data_folder)
+    print(f"\nGenerated {args.days} day(s) of sample data in '{args.data_folder}/'.")
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Generate charts and print summary statistics (no email)."""
+    from report_generator import SalesReportGenerator
+
+    generator = SalesReportGenerator(args.data_folder, args.reports_folder)
+    report_data = generator.generate_full_report()
+
+    print("\nDAILY STATISTICS")
+    print("-" * 40)
+    for key, value in report_data["daily_stats"].items():
+        print(f"  {key:<22}: {value}")
+    print(f"\nGenerated {len(report_data['chart_paths'])} charts in '{args.reports_folder}/'.")
+    return 0
+
+
+def cmd_email(args: argparse.Namespace) -> int:
+    """Generate a report and email it to the configured recipients."""
+    from email_automation import EmailAutomator
+
+    automator = EmailAutomator(args.config)
+    if not automator.settings.email.is_configured:
+        print(
+            "Email is not configured. Create a .env file (see .env.example) or a "
+            "config.ini with SENDER_EMAIL, SENDER_PASSWORD and RECIPIENT_EMAIL."
+        )
+        return 1
+    automator.generate_and_send_report()
+    return 0
+
+
+def cmd_schedule(args: argparse.Namespace) -> int:
+    """Run the email report automatically every day at a given time."""
+    import time
+    import schedule
+    from email_automation import EmailAutomator
+
+    automator = EmailAutomator(args.config)
+    schedule.every().day.at(args.time).do(automator.generate_and_send_report)
+    print(f"Scheduled daily reports at {args.time}. Press Ctrl+C to stop.")
+    try:
+        while True:
+            schedule.run_pending()
+            time.sleep(30)
+    except KeyboardInterrupt:
+        print("\nScheduler stopped.")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the top-level argument parser and all subcommands."""
+    parser = argparse.ArgumentParser(
+        prog="sales-automation",
+        description="Automated sales reporting toolkit (data, charts, Excel, PDF, email).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--config", default="config.ini",
+                        help="Path to config.ini (default: config.ini).")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    # generate-data
+    p_gen = sub.add_parser("generate-data", help="Create sample sales CSV data.")
+    p_gen.add_argument("--days", type=int, default=7, help="Number of days to generate (default: 7).")
+    p_gen.add_argument("--min-records", type=int, default=30, help="Minimum records per day.")
+    p_gen.add_argument("--max-records", type=int, default=80, help="Maximum records per day.")
+    p_gen.add_argument("--data-folder", default="data", help="Output folder for CSV files.")
+    p_gen.set_defaults(func=cmd_generate_data)
+
+    # report
+    p_rep = sub.add_parser("report", help="Generate charts and print statistics.")
+    p_rep.add_argument("--data-folder", default="data", help="Folder containing CSV data.")
+    p_rep.add_argument("--reports-folder", default="reports", help="Folder for generated charts.")
+    p_rep.set_defaults(func=cmd_report)
+
+    # email
+    p_email = sub.add_parser("email", help="Generate a report and email it.")
+    p_email.set_defaults(func=cmd_email)
+
+    # schedule
+    p_sched = sub.add_parser("schedule", help="Send the email report daily on a schedule.")
+    p_sched.add_argument("--time", default="09:00", help="Daily run time HH:MM (default: 09:00).")
+    p_sched.set_defaults(func=cmd_schedule)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    # Initialise logging once for the whole CLI run.
+    settings = load_settings(getattr(args, "config", "config.ini"))
+    setup_logging(settings.logs_folder, settings.log_level)
+
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
