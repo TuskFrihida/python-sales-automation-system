@@ -24,7 +24,28 @@
 
 ## Step 2: Configure Your Email Settings
 
-Edit the `config.ini` file with your real information:
+You can configure credentials in **either** of two ways. Environment
+variables (`.env`) take priority and are the recommended, more secure option.
+
+### Option A (recommended): `.env` file
+
+Copy the template and fill in your values:
+
+```bash
+cp .env.example .env      # Windows: copy .env.example .env
+```
+
+```env
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=YOUR_GMAIL@gmail.com
+SENDER_PASSWORD=YOUR_16_CHAR_APP_PASSWORD
+RECIPIENT_EMAIL=recipient@example.com
+```
+
+### Option B: `config.ini` file
+
+Copy `config.ini.example` to `config.ini` and edit it:
 
 ```ini
 [EMAIL]
@@ -41,69 +62,78 @@ logs_folder = logs
 
 [SETTINGS]
 report_frequency = daily
-chart_style = seaborn
+chart_style = seaborn-v0_8
 log_level = INFO
 ```
+
+Both `.env` and `config.ini` are git-ignored and must never be committed.
 
 ## Step 3: Install Required Packages
 
 ```bash
-pip install pandas openpyxl matplotlib seaborn schedule
+pip install -r requirements.txt
 ```
 
 ## Step 4: Test the System
 
+All features run through the unified CLI (`main.py`).
+
 ### Generate Sample Data (if not already done):
 ```bash
-python data_generator.py
+python main.py generate-data --days 7
 ```
 
 ### Test Report Generation (without email):
 ```bash
-python report_generator.py
+python main.py report
 ```
 
 ### Test Complete Email System:
 ```bash
-python email_automation.py
+python main.py email
 ```
 
 ## How to Run Different Components
 
 ### 1. Generate New Sample Data
 ```bash
-python data_generator.py
+python main.py generate-data --days 7
 ```
-- Creates 7 days of sales data in `data/` folder
-- Each day has 30-80 random sales records
+- Creates sample sales data in the `data/` folder
+- Each day has 30-80 random sales records (configurable)
 
 ### 2. Generate Reports Only (No Email)
 ```bash
-python report_generator.py
+python main.py report
 ```
 - Creates charts in `reports/` folder
 - Shows statistics in console
 - Good for testing without sending emails
 
-### 3. Send Email Report Once
+### 3. Export Excel / PDF
 ```bash
-python email_automation.py
+python main.py excel
+python main.py pdf
+```
+
+### 4. Launch the Web Dashboard
+```bash
+python main.py dashboard
+```
+- Opens a live view at http://127.0.0.1:5000
+
+### 5. Send Email Report Once
+```bash
+python main.py email
 ```
 - Generates reports AND sends email
 - Use this for testing your email setup
 
-### 4. Schedule Daily Reports
-Edit `email_automation.py` and uncomment the last line:
-```python
-# schedule_daily_reports()  # ← Remove the # to enable
-```
-
-Then run:
+### 6. Schedule Daily Reports
 ```bash
-python email_automation.py
+python main.py schedule --time 09:00
 ```
-- Runs continuously
-- Sends reports daily at 9:00 AM
+- Runs continuously and sends reports daily at the given time
 - Press Ctrl+C to stop
 
 ## Troubleshooting

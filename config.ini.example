@@ -15,5 +15,5 @@ logs_folder = logs
 
 [SETTINGS]
 report_frequency = daily
-chart_style = seaborn
+chart_style = seaborn-v0_8
 log_level = INFO 
