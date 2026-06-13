@@ -72,6 +72,15 @@ def cmd_email(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_excel(args: argparse.Namespace) -> int:
+    """Export a styled multi-sheet Excel workbook with native charts."""
+    from excel_exporter import ExcelReportExporter
+
+    exporter = ExcelReportExporter(args.data_folder, args.reports_folder)
+    exporter.export(args.output)
+    return 0
+
+
 def cmd_schedule(args: argparse.Namespace) -> int:
     """Run the email report automatically every day at a given time."""
     import time
@@ -119,6 +128,13 @@ def build_parser() -> argparse.ArgumentParser:
     # email
     p_email = sub.add_parser("email", help="Generate a report and email it.")
     p_email.set_defaults(func=cmd_email)
+
+    # excel
+    p_excel = sub.add_parser("excel", help="Export a styled Excel workbook with charts.")
+    p_excel.add_argument("--data-folder", default="data", help="Folder containing CSV data.")
+    p_excel.add_argument("--reports-folder", default="reports", help="Folder for the workbook.")
+    p_excel.add_argument("--output", default=None, help="Output filename (default: dated name).")
+    p_excel.set_defaults(func=cmd_excel)
 
     # schedule
     p_sched = sub.add_parser("schedule", help="Send the email report daily on a schedule.")
